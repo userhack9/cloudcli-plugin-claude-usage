@@ -58,7 +58,7 @@ test('aggregate dedupes by message id and buckets by day', () => {
       project: 'proj-a',
       entries: [
         entry('m1', '2026-07-15T10:00:00Z'),
-        entry('m1', '2026-07-15T10:00:00Z'), // duplicate line — must count once
+        entry('m1', '2026-07-15T10:00:00Z'), // duplicate line - must count once
         entry('m2', '2026-07-16T09:00:00Z'),
       ],
     }],
@@ -103,10 +103,10 @@ test('aggregate window aligns with daily calendar buckets', () => {
     [{
       project: 'p',
       entries: [
-        entry('w1', '2026-06-16T15:00:00Z'), // day before daily[0] — must be fully excluded
-        entry('w2', '2026-06-17T00:30:00Z'), // first covered day — included
-        entry('w3', '2026-07-16T23:00:00Z'), // later today (after nowMs, same UTC day) — included
-        entry('w4', '2026-07-17T01:00:00Z'), // tomorrow — fully excluded
+        entry('w1', '2026-06-16T15:00:00Z'), // day before daily[0] - must be fully excluded
+        entry('w2', '2026-06-17T00:30:00Z'), // first covered day - included
+        entry('w3', '2026-07-16T23:00:00Z'), // later today (after nowMs, same UTC day) - included
+        entry('w4', '2026-07-17T01:00:00Z'), // tomorrow - fully excluded
       ],
     }],
     30, NOW,

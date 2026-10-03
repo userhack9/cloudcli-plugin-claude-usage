@@ -33,9 +33,9 @@ export function parseCredentials(json: unknown, nowMs: number): Credentials | nu
 }
 
 const KIND_LABELS: Record<string, string> = {
-  session: 'Session (5h)',
-  weekly_all: 'Weekly (all models)',
-  weekly_scoped: 'Weekly',
+  session: 'Сессия (5 ч)',
+  weekly_all: 'Неделя (все модели)',
+  weekly_scoped: 'Неделя',
 };
 
 /** Defensive mapping of the (unofficial) usage endpoint response. */
@@ -50,7 +50,7 @@ export function normalizeUsage(raw: unknown, plan: string | null, tier: string |
       const base = KIND_LABELS[l.kind] ?? l.kind;
       limits.push({
         kind: l.kind,
-        label: model ? `${base} — ${model}` : base,
+        label: model ? `${base} - ${model}` : base,
         percent: l.percent,
         severity: typeof l.severity === 'string' ? l.severity : 'normal',
         resetsAt: typeof l.resets_at === 'string' ? l.resets_at : null,

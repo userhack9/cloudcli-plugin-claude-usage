@@ -20,12 +20,12 @@ async function getLive(): Promise<LiveData> {
   try {
     credsJson = JSON.parse(fs.readFileSync(path.join(CLAUDE_DIR, '.credentials.json'), 'utf-8'));
   } catch {
-    throw Object.assign(new Error('No Claude Code credentials found — sign in with the claude CLI first.'), { status: 404 });
+    throw Object.assign(new Error('Не найдены учётные данные Claude Code - сначала войдите через claude.'), { status: 404 });
   }
   const creds = parseCredentials(credsJson, Date.now());
-  if (!creds) throw Object.assign(new Error('Unrecognized credentials file format.'), { status: 500 });
+  if (!creds) throw Object.assign(new Error('Неизвестный формат файла учётных данных.'), { status: 500 });
   if (creds.expired) {
-    throw Object.assign(new Error('OAuth token expired — run claude to refresh it, then retry.'), { status: 401 });
+    throw Object.assign(new Error('Токен Claude истёк - запустите claude, чтобы обновить его, и повторите.'), { status: 401 });
   }
 
   const res = await fetch(USAGE_URL, {
@@ -37,7 +37,7 @@ async function getLive(): Promise<LiveData> {
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) {
-    throw Object.assign(new Error(`Usage endpoint returned HTTP ${res.status}.`), { status: 502 });
+    throw Object.assign(new Error(`Сервис лимитов вернул HTTP ${res.status}.`), { status: 502 });
   }
   const data = normalizeUsage(await res.json(), creds.plan, creds.tier);
   liveCache = { at: Date.now(), data };
@@ -69,7 +69,7 @@ function getHistory(days: number) {
   try {
     dirs = fs.readdirSync(projectsDir, { withFileTypes: true });
   } catch {
-    // no transcripts at all — aggregate over nothing, frontend shows empty state
+    // no transcripts at all - aggregate over nothing, frontend shows empty state
   }
   for (const dir of dirs) {
     if (!dir.isDirectory()) continue;
@@ -84,7 +84,7 @@ function getHistory(days: number) {
       try {
         sessions.push({ project, entries: readSessionFile(path.join(projectsDir, dir.name, f)) });
       } catch {
-        /* unreadable file — skip */
+        /* unreadable file - skip */
       }
     }
   }
@@ -107,17 +107,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     res.writeHead(404);
-    res.end(JSON.stringify({ error: 'Not found' }));
+    res.end(JSON.stringify({ error: 'Не найдено' }));
   } catch (err: any) {
     res.writeHead(typeof err?.status === 'number' ? err.status : 500);
-    res.end(JSON.stringify({ error: err?.message ?? 'Internal error' }));
+    res.end(JSON.stringify({ error: err?.message ?? 'Внутренняя ошибка' }));
   }
 });
 
 server.listen(0, '127.0.0.1', () => {
   const addr = server.address();
   if (addr && typeof addr !== 'string') {
-    // Signal readiness to the host — this JSON line is required
+    // Signal readiness to the host - this JSON line is required
     console.log(JSON.stringify({ ready: true, port: addr.port }));
   }
 });

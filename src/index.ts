@@ -1,5 +1,5 @@
 /**
- * Claude Usage plugin — module entry point.
+ * Claude Usage plugin - module entry point.
  * Live plan-limit gauges + 30-day token/cost history.
  */
 
@@ -16,6 +16,11 @@ interface HistoryData {
   byProject: { project: string; tokens: TokenCounts; cost: number | null }[];
   totals: { tokens: TokenCounts; cost: number; sessions: number; messages: number };
 }
+
+// ── Настройки ───────────────────────────────────────────────────────────
+
+// Курс для пересчёта оценки стоимости из долларов в рубли. Меняется вручную.
+const USD_RUB = 95;
 
 // ── Theme (matches starter conventions) ─────────────────────────────────
 
@@ -44,8 +49,21 @@ function fmtTokens(n: number): string {
   return `${(n / 1_000_000_000).toFixed(2)}B`;
 }
 
-function fmtCost(n: number | null): string {
-  return n === null ? '—' : `$${n.toFixed(2)}`;
+function fmtCost(usd: number | null): string {
+  if (usd === null) return '-';
+  const rub = usd * USD_RUB;
+  const digits = rub < 10 ? 2 : 0;
+  return `${rub.toLocaleString('ru-RU', { minimumFractionDigits: digits, maximumFractionDigits: digits })} ₽`;
+}
+
+/** Хост показывает только "RPC error <код>", поэтому переводим коды в понятный текст. */
+function errText(err: unknown, fallback: string): string {
+  const msg = (err as Error)?.message ?? '';
+  const code = /RPC error (\d+)/.exec(msg)?.[1];
+  if (code === '401') return 'Токен Claude истёк. Запустите claude в любой вкладке Shell и нажмите «Обновить».';
+  if (code === '404') return 'Не найдены учётные данные Claude Code. Сначала войдите через claude.';
+  if (code === '502') return 'Сервис лимитов Anthropic сейчас недоступен. Попробуйте позже.';
+  return msg || fallback;
 }
 
 function totalOf(t: TokenCounts): number {
@@ -56,11 +74,11 @@ function resetsIn(iso: string | null): string {
   if (!iso) return '';
   const ms = Date.parse(iso) - Date.now();
   if (!Number.isFinite(ms)) return '';
-  if (ms <= 0) return 'resetting…';
+  if (ms <= 0) return 'сброс…';
   const h = Math.floor(ms / 3_600_000);
   const m = Math.floor((ms % 3_600_000) / 60_000);
-  if (h >= 48) return `resets in ${Math.floor(h / 24)}d ${h % 24}h`;
-  return h > 0 ? `resets in ${h}h ${m}m` : `resets in ${m}m`;
+  if (h >= 48) return `сброс через ${Math.floor(h / 24)} д ${h % 24} ч`;
+  return h > 0 ? `сброс через ${h} ч ${m} мин` : `сброс через ${m} мин`;
 }
 
 function esc(s: string): string {
@@ -89,7 +107,7 @@ function renderLive(c: ThemeColors, live: LiveData | null, error: string | null)
   if (error) {
     body = errorNote(c, error);
   } else if (!live || live.limits.length === 0) {
-    body = `<div style="font-size:0.75rem;color:${c.muted}">No limit data available.</div>`;
+    body = `<div style="font-size:0.75rem;color:${c.muted}">Нет данных о лимитах.</div>`;
   } else {
     body = live.limits.map((l) => {
       const color = sevColor(c, l.severity, l.percent);
@@ -106,14 +124,14 @@ function renderLive(c: ThemeColors, live: LiveData | null, error: string | null)
         </div>`;
     }).join('');
   }
-  return card(c, `plan limits ${badge}`, body);
+  return card(c, `лимиты тарифа ${badge}`, body);
 }
 
 function renderChart(c: ThemeColors, daily: HistoryData['daily']): string {
   const max = Math.max(1, ...daily.map((d) => totalOf(d.tokens)));
   const bars = daily.map((d, i) => {
     const h = Math.round((totalOf(d.tokens) / max) * 100);
-    const label = `${d.date}: ${fmtTokens(totalOf(d.tokens))} tokens · ${fmtCost(d.cost)}`;
+    const label = `${d.date}: ${fmtTokens(totalOf(d.tokens))} токенов · ${fmtCost(d.cost)}`;
     return `<div title="${label}" style="flex:1;display:flex;align-items:flex-end;height:90px">
       <div style="width:100%;height:${Math.max(h, totalOf(d.tokens) > 0 ? 3 : 0)}%;background:${c.accent};opacity:${0.45 + 0.55 * (i / daily.length)};border-radius:1px"></div>
     </div>`;
@@ -125,7 +143,7 @@ function renderChart(c: ThemeColors, daily: HistoryData['daily']): string {
 }
 
 function renderTable(c: ThemeColors, rows: [string, TokenCounts, number | null][]): string {
-  if (rows.length === 0) return `<div style="font-size:0.75rem;color:${c.muted}">No data.</div>`;
+  if (rows.length === 0) return `<div style="font-size:0.75rem;color:${c.muted}">Нет данных.</div>`;
   return rows.map(([name, tokens, cost]) => `
     <div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid ${c.border};font-size:0.72rem">
       <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;opacity:0.8" title="${esc(name)}">${esc(name)}</div>
@@ -135,17 +153,17 @@ function renderTable(c: ThemeColors, rows: [string, TokenCounts, number | null][
 }
 
 function renderHistory(c: ThemeColors, history: HistoryData | null, error: string | null): string {
-  if (error) return card(c, 'usage history (30 days)', errorNote(c, error));
-  if (!history) return card(c, 'usage history (30 days)', `<div style="font-size:0.75rem;color:${c.muted}">Loading…</div>`);
+  if (error) return card(c, 'история использования (30 дней)', errorNote(c, error));
+  if (!history) return card(c, 'история использования (30 дней)', `<div style="font-size:0.75rem;color:${c.muted}">Загрузка…</div>`);
   if (history.totals.messages === 0) {
-    return card(c, 'usage history (30 days)', `<div style="font-size:0.75rem;color:${c.muted}">No Claude Code activity found in the last 30 days.</div>`);
+    return card(c, 'история использования (30 дней)', `<div style="font-size:0.75rem;color:${c.muted}">За последние 30 дней активности Claude Code не найдено.</div>`);
   }
   const t = history.totals;
   const stats: [string, string][] = [
-    ['total tokens', fmtTokens(totalOf(t.tokens))],
-    ['output tokens', fmtTokens(t.tokens.output)],
-    ['est. cost', fmtCost(t.cost)],
-    ['sessions', String(t.sessions)],
+    ['всего токенов', fmtTokens(totalOf(t.tokens))],
+    ['токенов в ответах', fmtTokens(t.tokens.output)],
+    ['оценка стоимости', fmtCost(t.cost)],
+    ['сессий', String(t.sessions)],
   ];
   const statCards = `
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
@@ -157,10 +175,10 @@ function renderHistory(c: ThemeColors, history: HistoryData | null, error: strin
     </div>`;
   return `
     ${statCards}
-    ${card(c, 'daily tokens (30 days)', renderChart(c, history.daily))}
+    ${card(c, 'токены по дням (30 дней)', renderChart(c, history.daily))}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-      ${card(c, 'by model', renderTable(c, history.byModel.map((m) => [m.model, m.tokens, m.cost])))}
-      ${card(c, 'by project', renderTable(c, history.byProject.slice(0, 10).map((p) => [p.project, p.tokens, p.cost])))}
+      ${card(c, 'по моделям', renderTable(c, history.byModel.map((m) => [m.model, m.tokens, m.cost])))}
+      ${card(c, 'по проектам', renderTable(c, history.byProject.slice(0, 10).map((p) => [p.project, p.tokens, p.cost])))}
     </div>`;
 }
 
@@ -190,7 +208,7 @@ export function mount(container: HTMLElement, api: PluginAPI): void {
     root.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px">
         <div style="font-size:1.3rem;font-weight:700;letter-spacing:-0.02em">Claude Usage<span style="color:${c.accent}">▌</span></div>
-        <button id="cu-refresh" style="padding:5px 12px;background:transparent;border:1px solid ${c.border};color:${c.muted};font-family:${MONO};font-size:0.7rem;border-radius:3px;cursor:pointer">↻ refresh</button>
+        <button id="cu-refresh" style="padding:5px 12px;background:transparent;border:1px solid ${c.border};color:${c.muted};font-family:${MONO};font-size:0.7rem;border-radius:3px;cursor:pointer">↻ Обновить</button>
       </div>
       ${renderLive(c, state.live, state.liveError)}
       ${renderHistory(c, state.history, state.historyError)}
@@ -204,7 +222,7 @@ export function mount(container: HTMLElement, api: PluginAPI): void {
       state.liveError = null;
     } catch (err) {
       state.live = null;
-      state.liveError = (err as Error).message || 'Live usage unavailable.';
+      state.liveError = errText(err, 'Лимиты недоступны.');
     }
   }
 
@@ -214,7 +232,7 @@ export function mount(container: HTMLElement, api: PluginAPI): void {
       state.historyError = null;
     } catch (err) {
       state.history = null;
-      state.historyError = (err as Error).message || 'History unavailable.';
+      state.historyError = errText(err, 'История недоступна.');
     }
   }
 

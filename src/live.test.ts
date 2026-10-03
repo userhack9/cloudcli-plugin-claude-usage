@@ -34,11 +34,11 @@ test('normalizeUsage maps known limits and skips malformed ones', () => {
   assert.equal(live.plan, 'max');
   assert.equal(live.limits.length, 3);
   assert.deepEqual(live.limits[0], {
-    kind: 'session', label: 'Session (5h)', percent: 43, severity: 'normal',
+    kind: 'session', label: 'Сессия (5 ч)', percent: 43, severity: 'normal',
     resetsAt: '2026-07-16T18:29:59Z', model: null,
   });
-  assert.equal(live.limits[1].label, 'Weekly (all models)');
-  assert.equal(live.limits[2].label, 'Weekly — Fable');
+  assert.equal(live.limits[1].label, 'Неделя (все модели)');
+  assert.equal(live.limits[2].label, 'Неделя - Fable');
   assert.equal(live.limits[2].model, 'Fable');
 });
 
@@ -59,7 +59,7 @@ test('normalizeUsage rejects non-string or empty model display_name', () => {
     { kind: 'weekly_scoped', percent: 2, severity: 'normal', resets_at: null, scope: { model: { display_name: '' } } },
   ] }, null, null);
   assert.equal(live.limits[0].model, null);
-  assert.equal(live.limits[0].label, 'Weekly');
+  assert.equal(live.limits[0].label, 'Неделя');
   assert.equal(live.limits[1].model, null);
-  assert.equal(live.limits[1].label, 'Weekly');
+  assert.equal(live.limits[1].label, 'Неделя');
 });
